@@ -1,64 +1,50 @@
 import { createClient } from "@supabase/supabase-js";
-import { notFound } from "next/navigation";
-import ClientOrderLive from "./ClientOrderLive";
 
 export const dynamic = "force-dynamic";
 
-type StatusRow = {
-  code: string;
-  label: string;
-  sort_order: number;
-};
-
-type Vehicle = {
-  make: string;
-  model: string;
-  year: string;
-  license_plate: string;
-};
-
-type OrderRow = {
-  id: number;
-  short_code: string;
-  status_code: string;
-  report: string | null;
-  vehicle: Vehicle;
-  updated_at?: string | null;
-};
-
-export default async function ClientOrderPage({ params }: { params: any }) {
-  // ✅ Next 16.1.6: params может быть Promise
+export default async function Page({ params }: { params: any }) {
   const p = await Promise.resolve(params);
   const raw = p?.short_code;
+  const shortCode = String(raw ?? "").toUpperCase();
 
-  if (!raw) notFound();
-
-  const shortCode = String(raw).toUpperCase();
+  const envCheck = {
+    hasUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+    hasAnon: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+    shortCode,
+  };
 
   const sb = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
   );
 
-  const { data: order, error } = await sb
-    .from("orders")
-    .select("id, short_code, status_code, report, vehicle, updated_at")
-    .eq("short_code", shortCode)
-    .single<OrderRow>();
+  let order: any = null;
+  let err: any = null;
 
-  if (error || !order) notFound();
+  if (shortCode) {
+    const res = await sb
+      .from("orders")
+      .select("id, short_code, status_code")
+      .eq("short_code", shortCode)
+      .maybeSingle();
 
-  const { data: statuses } = await sb
-    .from("order_statuses")
-    .select("code,label,sort_order")
-    .order("sort_order", { ascending: true })
-    .returns<StatusRow[]>();
+    order = res.data;
+    err = res.error;
+  }
 
   return (
-    <ClientOrderLive
-      initialOrder={order}
-      statuses={statuses ?? []}
-      shortCode={shortCode}
-    />
+    <pre>
+      {JSON.stringify(
+        {
+          envCheck,
+          error: err
+            ? { message: err.message, code: err.code, details: err.details, hint: err.hint }
+            : null,
+          order,
+        },
+        null,
+        2
+      )}
+    </pre>
   );
 }
