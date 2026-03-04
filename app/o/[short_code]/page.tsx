@@ -2,6 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import ClientOrderLive from "./ClientOrderLive";
 
+export const dynamic = "force-dynamic";
+
 type StatusRow = {
   code: string;
   label: string;
@@ -24,19 +26,19 @@ type OrderRow = {
   updated_at?: string | null;
 };
 
-const sb = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export default async function ClientOrderPage({ params }: { params: any }) {
-  // ✅ Next 16: params может быть Promise
+  // ✅ Next 16.1.6: params может быть Promise
   const p = await Promise.resolve(params);
   const raw = p?.short_code;
 
   if (!raw) notFound();
 
   const shortCode = String(raw).toUpperCase();
+
+  const sb = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   const { data: order, error } = await sb
     .from("orders")
